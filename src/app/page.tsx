@@ -1,8 +1,34 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PlayCircle, TrendingUp, Users } from "lucide-react";
+import { remoteConfig } from "@/lib/firebase";
+import { fetchAndActivate, getString } from "firebase/remote-config";
 
 export default function Home() {
+  const [heroPrefix, setHeroPrefix] = useState("Master the AI Revolution.");
+  const [heroHighlight, setHeroHighlight] = useState("Build the Future.");
+
+  useEffect(() => {
+    async function loadRemoteConfig() {
+      if (remoteConfig) {
+        try {
+          await fetchAndActivate(remoteConfig);
+          const prefix = getString(remoteConfig, "landing_hero_prefix");
+          const highlight = getString(remoteConfig, "landing_hero_highlight");
+          
+          if (prefix) setHeroPrefix(prefix);
+          if (highlight) setHeroHighlight(highlight);
+        } catch (error) {
+          console.error("Failed to load Remote Config", error);
+        }
+      }
+    }
+    loadRemoteConfig();
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -12,9 +38,9 @@ export default function Home() {
             WELCOME TO YI AI COURSE
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Master the AI Revolution. <br className="hidden md:block" />
+            {heroPrefix} <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500">
-              Build the Future.
+              {heroHighlight}
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">

@@ -3,6 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported } from "firebase/analytics";
+import { getRemoteConfig, isSupported as isRemoteConfigSupported, RemoteConfig } from "firebase/remote-config";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,14 +22,24 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Analytics only runs in the browser
+// Analytics and Remote Config only run in the browser
 let analytics = null;
+let remoteConfig: RemoteConfig | null = null;
+
 if (typeof window !== "undefined") {
   isSupported().then((supported) => {
     if (supported) {
       analytics = getAnalytics(app);
     }
   });
+
+  isRemoteConfigSupported().then((supported) => {
+    if (supported) {
+      remoteConfig = getRemoteConfig(app);
+      // You can set default values here or configure fetch intervals
+      remoteConfig.settings.minimumFetchIntervalMillis = 3600000; // 1 hour
+    }
+  });
 }
 
-export { app, auth, db, storage, analytics };
+export { app, auth, db, storage, analytics, remoteConfig };

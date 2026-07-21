@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
+import { remoteConfig } from "@/lib/firebase";
+import { fetchAndActivate, getString } from "firebase/remote-config";
 
-const plans = [
+const defaultPlans = [
   {
     name: "Creator Free",
     description: "For beginners getting started.",
@@ -46,6 +48,39 @@ const plans = [
 
 export default function BillingPage() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [plans, setPlans] = useState(defaultPlans);
+
+  useEffect(() => {
+    async function loadRemoteConfig() {
+      if (remoteConfig) {
+        try {
+          await fetchAndActivate(remoteConfig);
+          
+          const proPrice = getString(remoteConfig, "pro_plan_price");
+          const proStripeId = getString(remoteConfig, "pro_plan_stripe_id");
+          const lifetimePrice = getString(remoteConfig, "lifetime_plan_price");
+          const lifetimeStripeId = getString(remoteConfig, "lifetime_plan_stripe_id");
+          
+          setPlans(prevPlans => {
+            const newPlans = [...prevPlans];
+            // Pro Plan is index 1
+            if (proPrice) newPlans[1].price = proPrice;
+            if (proStripeId) newPlans[1].priceId = proStripeId;
+            
+            // Lifetime Plan is index 2
+            if (lifetimePrice) newPlans[2].price = lifetimePrice;
+            if (lifetimeStripeId) newPlans[2].priceId = lifetimeStripeId;
+            
+            return newPlans;
+          });
+          
+        } catch (error) {
+          console.error("Failed to load Remote Config", error);
+        }
+      }
+    }
+    loadRemoteConfig();
+  }, []);
 
   const handleCheckout = async (priceId: string | null) => {
     if (!priceId) return; // Free plan

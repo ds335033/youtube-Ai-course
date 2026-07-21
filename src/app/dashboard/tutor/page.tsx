@@ -1,13 +1,33 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useChat } from "ai/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Send, Bot, User, Loader2 } from "lucide-react";
+import { Sparkles, Send, Bot, User, Loader2, Wrench } from "lucide-react";
+import { remoteConfig } from "@/lib/firebase";
+import { fetchAndActivate, getBoolean } from "firebase/remote-config";
 
 export default function TutorPage() {
+  const [isTutorEnabled, setIsTutorEnabled] = useState(true);
+
+  useEffect(() => {
+    async function checkTutorStatus() {
+      if (remoteConfig) {
+        try {
+          await fetchAndActivate(remoteConfig);
+          // If remote config has the key, update the state
+          const enabled = getBoolean(remoteConfig, "enable_ai_tutor");
+          setIsTutorEnabled(enabled);
+        } catch (error) {
+          console.error("Failed to fetch Remote Config:", error);
+        }
+      }
+    }
+    checkTutorStatus();
+  }, []);
+
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: '/api/tutor',
     initialMessages: [
@@ -26,6 +46,22 @@ export default function TutorPage() {
     if (!input.trim()) return;
     handleSubmit(e);
   };
+
+  if (!isTutorEnabled) {
+    return (
+      <div className="max-w-4xl mx-auto h-[600px] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center max-w-md p-8 rounded-xl border border-zinc-800 bg-zinc-950/50 shadow-2xl">
+          <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center">
+            <Wrench className="w-8 h-8 text-zinc-500" />
+          </div>
+          <h2 className="text-2xl font-bold">Undergoing Maintenance</h2>
+          <p className="text-muted-foreground">
+            The AI Tutor is currently undergoing scheduled maintenance to improve its knowledge base. Please check back soon!
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
