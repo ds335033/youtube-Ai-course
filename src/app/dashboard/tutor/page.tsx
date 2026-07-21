@@ -1,31 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useEffect } from "react";
+import { useChat } from "ai/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Send, Bot, User } from "lucide-react";
+import { Sparkles, Send, Bot, User, Loader2 } from "lucide-react";
 
 export default function TutorPage() {
-  const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
-    { role: 'assistant', content: "Hello! I am your Yi AI Course tutor. How can I help you with the course material today?" }
-  ]);
-  const [loading, setLoading] = useState(false);
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: '/api/tutor',
+    initialMessages: [
+      { id: '1', role: 'assistant', content: "Hello! I am your Yi AI Course tutor. How can I help you with the course material today?" }
+    ]
+  });
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const onFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
-
-    setMessages([...messages, { role: 'user', content: prompt }]);
-    setPrompt("");
-    setLoading(true);
-
-    // Simulate API call to Gemini Tutor
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: 'assistant', content: "That's a great question about Prompt Engineering! When you use a system prompt, you set the behavior and persona of the LLM. This provides a strong baseline for accurate responses." }]);
-      setLoading(false);
-    }, 1500);
+    if (!input.trim()) return;
+    handleSubmit(e);
   };
 
   return (
@@ -51,50 +50,54 @@ export default function TutorPage() {
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1">
                     <Bot className="w-4 h-4 text-blue-500" />
                   </div>
                 )}
-                <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
+                <div className={`p-4 rounded-xl max-w-[85%] whitespace-pre-wrap leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white shadow-md' : 'bg-zinc-800/80 text-zinc-100 shadow-sm border border-zinc-700/50'}`}>
                   {msg.content}
                 </div>
                 {msg.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center shrink-0 mt-1">
                     <User className="w-4 h-4 text-zinc-300" />
                   </div>
                 )}
               </div>
             ))}
-            {loading && (
+            {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-3 justify-start">
-                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1">
                   <Bot className="w-4 h-4 text-blue-500" />
                 </div>
-                <div className="p-3 rounded-lg bg-zinc-800 text-zinc-400 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+                <div className="p-4 rounded-xl bg-zinc-800/80 border border-zinc-700/50 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                  <span className="text-zinc-400 text-sm">Thinking...</span>
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
           
           <div className="p-4 border-t border-zinc-800 bg-zinc-900/50">
-            <form onSubmit={handleSubmit} className="flex gap-2">
+            <form onSubmit={onFormSubmit} className="flex gap-2 relative">
               <Textarea 
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                value={input}
+                onChange={handleInputChange}
                 placeholder="Ask your tutor a question..."
-                className="min-h-[50px] max-h-[150px] resize-y bg-zinc-950 border-zinc-800"
+                className="min-h-[55px] max-h-[200px] resize-y bg-zinc-950 border-zinc-800 py-4 pr-14 text-base focus-visible:ring-blue-500/50"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleSubmit(e);
+                    onFormSubmit(e);
                   }
                 }}
               />
-              <Button type="submit" disabled={!prompt.trim() || loading} className="h-[50px] w-[50px] shrink-0 bg-blue-600 hover:bg-blue-700">
-                <Send className="w-5 h-5" />
+              <Button 
+                type="submit" 
+                disabled={!input.trim() || isLoading} 
+                className="absolute bottom-2 right-2 h-10 w-10 shrink-0 bg-blue-600 hover:bg-blue-700 p-0 rounded-lg shadow-md transition-all disabled:opacity-50"
+              >
+                <Send className="w-4 h-4 ml-0.5" />
               </Button>
             </form>
           </div>
